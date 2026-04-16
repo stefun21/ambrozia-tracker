@@ -20,7 +20,7 @@ function App() {
         "Dacă strănuți acum, îngheață în aer. Mare grijă!",
         "E vremea aia când caloriferul e idolul tău.",
         "Pinguinii tocmai au cerut o pătură în plus.",
-        "Straturi, Alex, straturi! Fii o ceapă umană azi."
+        "Straturi, nas înfundat, haine groase! Fii o ceapă umană azi."
       ],
       rain: [
         "Perfect pentru spălat mașina pe gratis. Sau nu.",
