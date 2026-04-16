@@ -11,128 +11,123 @@ function App() {
       const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=ro`);
       const json = await res.json();
       setCity(json.city || json.locality || "Orașul tău");
-    } catch (e) {
-      setCity("Locația Ta");
-    }
+    } catch (e) { setCity("Locația Ta"); }
+  };
+
+  const getFunnyMessage = (temp: number, wind: number, rain: number) => {
+    const messages = {
+      heat: [
+        "Curaj, încă puțin și ne topim de tot ca înghețata.",
+        "Dacă era mai cald, ieșeam cu prosopul pe stradă.",
+        "Oficial: asfaltul e acum o tigaie uriașă.",
+        "O zi perfectă să te muți în congelator.",
+        "Aerul condiționat e noul tău cel mai bun prieten."
+      ],
+      cold: [
+        "Frigul ăsta mușcă mai tare decât un maidanez flămând.",
+        "Dacă strănuți acum, îngheață în aer. Mare grijă!",
+        "E vremea aia când caloriferul e idolul tău.",
+        "Pinguinii tocmai au cerut o pătură în plus.",
+        "Straturi, Alex, straturi! Fii o ceapă umană azi."
+      ],
+      rain: [
+        "Perfect pentru spălat mașina pe gratis. Sau nu.",
+        "Nu ești de zahăr, dar o umbrelă n-ar strica deloc.",
+        "Dacă vezi o arcă, urcă-te în ea fără să pui întrebări.",
+        "Broaștele sunt în extaz, noi mai puțin.",
+        "Atenție la bălți! Unele au propriul lor cod poștal."
+      ],
+      wind: [
+        "Ține-ți pălăria sau zi-i adio, pleacă în alt județ.",
+        "Vântul ăsta îți face freza nouă fără să ceri.",
+        "Dacă ești slab, pune niște pietre în buzunare azi.",
+        "Zbori, puiule, zbori! Sau măcar mergi înclinat.",
+        "Vânt bun pentru navigație, prost pentru coafură."
+      ],
+      perfect: [
+        "Vreme de pus în ramă. Profită cât durează!",
+        "Nici prea-prea, nici foarte-foarte. Boierie!",
+        "Dacă nici azi nu ieși, când mai ieși?",
+        "E atât de bine că și factura la gaz a zâmbit.",
+        "Vreme de stat la terasă și uitat de griji."
+      ]
+    };
+
+    if (rain > 0.5) return messages.rain[Math.floor(Math.random() * 5)];
+    if (wind > 25) return messages.wind[Math.floor(Math.random() * 5)];
+    if (temp > 28) return messages.heat[Math.floor(Math.random() * 5)];
+    if (temp < 10) return messages.cold[Math.floor(Math.random() * 5)];
+    return messages.perfect[Math.floor(Math.random() * 5)];
   };
 
   const updateData = async (lat: number, lon: number) => {
     try {
-      // Luăm temperatura (Weather API)
-      const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m&timezone=auto`);
-      const weatherJson = await weatherRes.json();
-
-      // Luăm TOATE tipurile de polen (Air Quality API)
-      const airRes = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=birch_pollen,grass_pollen,ragweed_pollen,alder_pollen,mugwort_pollen,olive_pollen&timezone=auto`);
-      const airJson = await airRes.json();
+      const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m,rain&timezone=auto`);
+      const wJson = await wRes.json();
+      const aRes = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=birch_pollen,grass_pollen,ragweed_pollen,alder_pollen&timezone=auto`);
+      const aJson = await airRes.json();
       
       const h = new Date().getHours();
+      const rawPollen = (aJson.hourly?.birch_pollen?.[h] || 0) + (aJson.hourly?.grass_pollen?.[h] || 0) + (aJson.hourly?.ragweed_pollen?.[h] || 0) + (aJson.hourly?.alder_pollen?.[h] || 0);
       
-      // Facem suma tuturor grăunțelor de polen detectate în aer acum
-      const totalPollen = (
-        (airJson.hourly?.birch_pollen?.[h] || 0) +
-        (airJson.hourly?.grass_pollen?.[h] || 0) +
-        (airJson.hourly?.ragweed_pollen?.[h] || 0) +
-        (airJson.hourly?.alder_pollen?.[h] || 0) +
-        (airJson.hourly?.mugwort_pollen?.[h] || 0) +
-        (airJson.hourly?.olive_pollen?.[h] || 0)
-      );
-      
+      // Mapăm valoarea brută (0-150) la scara 0-10
+      let score = (rawPollen / 15); 
+      if (score > 10) score = 10;
+      if (score < 0.1 && rawPollen > 0) score = 0.5;
+
       setData({
-        pollen: totalPollen,
-        temp: Math.round(weatherJson.current?.temperature_2m ?? 0)
+        score: score,
+        temp: Math.round(wJson.current?.temperature_2m || 0),
+        wind: wJson.current?.wind_speed_10m || 0,
+        rain: wJson.current?.rain || 0,
+        funny: getFunnyMessage(wJson.current?.temperature_2m, wJson.current?.wind_speed_10m, wJson.current?.rain)
       });
-      
       await getCityName(lat, lon);
-    } catch (e) {
-      setError("Eroare la conectarea cu satelitul.");
-    }
+    } catch (e) { setError("Satelitul e în pauză de masă..."); }
   };
 
   useEffect(() => {
     if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (p) => updateData(p.coords.latitude, p.coords.longitude),
-        () => updateData(44.43, 26.10)
-      );
-    } else {
-      updateData(44.43, 26.10);
-    }
+      navigator.geolocation.getCurrentPosition((p) => updateData(p.coords.latitude, p.coords.longitude), () => updateData(44.43, 26.10));
+    } else { updateData(44.43, 26.10); }
   }, []);
 
-  if (error) return <div style={{padding: '50px', textAlign: 'center', color: 'red'}}>{error}</div>;
-  if (!data) return <div style={{padding: '50px', textAlign: 'center', fontFamily: 'sans-serif'}}>Se calculează polenul din aer...</div>;
+  if (!data) return <div style={{height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif'}}>Se calculează zen-ul...</div>;
 
-  // Logica de culori pentru Polul Total (limitele sunt mai mari la suma decat la ambrozie singura)
-  const getTheme = (v: number) => {
-    if (v < 10) return { bg: '#ECFDF5', border: '#10B981', label: 'SCĂZUT' };
-    if (v < 50) return { bg: '#FEF3C7', border: '#F59E0B', label: 'MODERAT' };
-    return { bg: '#FEF2F2', border: '#EF4444', label: 'RIDICAT' };
+  const getColors = (v: number) => {
+    if (v < 3) return { bg: '#F0FDF4', circle: '#22C55E', text: '#166534' };
+    if (v < 7) return { bg: '#FFFBEB', circle: '#F59E0B', text: '#92400E' };
+    return { bg: '#FEF2F2', circle: '#EF4444', text: '#991B1B' };
   };
 
-  const theme = getTheme(data.pollen);
+  const theme = getColors(data.score);
 
   return (
     <div style={{ 
-      minHeight: '100vh', 
-      backgroundColor: theme.bg, 
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '20px',
-      color: '#111827',
-      transition: 'all 0.5s ease'
+      minHeight: '100vh', backgroundColor: theme.bg, fontFamily: 'system-ui, sans-serif',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', transition: 'all 0.8s ease'
     }}>
-      <header style={{ marginBottom: '40px', textAlign: 'center' }}>
-        <h1 style={{ fontSize: '1.4rem', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '2px' }}>
-          {city}
-        </h1>
-        <div style={{ fontSize: '0.8rem', color: '#6B7280', fontWeight: 'bold' }}>TRACKER POLEN LIVE</div>
-      </header>
+      <h1 style={{ fontSize: '1.2rem', fontWeight: '900', color: theme.text, letterSpacing: '2px', marginBottom: '40px' }}>{city.toUpperCase()}</h1>
       
       <div style={{ 
-        background: 'white', 
-        width: '280px', 
-        height: '280px', 
-        borderRadius: '50%', 
-        display: 'flex', 
-        flexDirection: 'column', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.1)',
-        border: `12px solid ${theme.border}`,
+        width: '260px', height: '260px', borderRadius: '50%', background: 'white',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        boxShadow: `0 20px 40px ${theme.circle}33`, border: `12px solid ${theme.circle}`
       }}>
-        <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#9CA3AF' }}>INDICE TOTAL</div>
-        <div style={{ fontSize: '5rem', fontWeight: '900', lineHeight: 1, margin: '5px 0' }}>
-          {data.pollen.toFixed(0)}
-        </div>
-        <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: theme.border }}>{theme.label}</div>
+        <div style={{ fontSize: '0.7rem', fontWeight: 'bold', color: '#94A3B8' }}>NIVEL POLEN</div>
+        <div style={{ fontSize: '5rem', fontWeight: '950', color: '#1E293B', lineHeight: 1 }}>{data.score.toFixed(1)}</div>
+        <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: theme.circle }}>{data.score < 3 ? 'OK' : data.score < 7 ? 'ATENȚIE' : 'PERICOL'}</div>
       </div>
 
-      <div style={{ marginTop: '50px', textAlign: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '1.5rem' }}>🌡️</span>
-          <span style={{ fontSize: '3rem', fontWeight: '900' }}>{data.temp}°C</span>
-        </div>
-        <div style={{ fontSize: '0.85rem', color: '#6B7280', fontWeight: 'bold' }}>TEMPERATURĂ ACTUALĂ</div>
+      <div style={{ marginTop: '40px', textAlign: 'center' }}>
+        <div style={{ fontSize: '3rem', fontWeight: '900', color: '#1E293B' }}>{data.temp}°C</div>
+        <p style={{ maxWidth: '250px', fontSize: '0.95rem', fontWeight: '600', color: '#475569', marginTop: '10px', fontStyle: 'italic' }}>
+          "{data.funny}"
+        </p>
       </div>
 
-      <button 
-        onClick={() => window.location.reload()}
-        style={{ 
-          marginTop: '50px', 
-          padding: '12px 30px', 
-          borderRadius: '15px', 
-          border: 'none', 
-          background: '#111827', 
-          color: 'white', 
-          fontWeight: 'bold',
-          cursor: 'pointer'
-        }}
-      >
-        ACTUALIZEAZĂ
+      <button onClick={() => window.location.reload()} style={{ marginTop: '40px', padding: '12px 30px', borderRadius: '15px', border: 'none', background: '#1E293B', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>
+        REPROSPECTEAZĂ
       </button>
     </div>
   );
@@ -141,5 +136,4 @@ function App() {
 const container = document.getElementById('root');
 const root = createRoot(container!);
 root.render(<App />);
-
 export default App;
