@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
-const CACHE_KEY = 'ambrozia_final_clean';
+const CACHE_KEY = 'ambrozia_final_balanced_v2';
 const CACHE_TIME = 15 * 60 * 1000;
 
 const getWeatherIcon = (code: number) => {
@@ -43,8 +43,9 @@ function App() {
       const cJson = await cRes.json();
       const name = namePrefix + (cJson.city || cJson.locality || "Oraș");
       
+      // Am adaugat temperature_2m_min pentru ziua curenta
       const [wRes, aRes] = await Promise.all([
-        fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&daily=temperature_2m_max,weather_code&timezone=auto`),
+        fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=auto`),
         fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=birch_pollen,grass_pollen,ragweed_pollen&timezone=auto`)
       ]);
       
@@ -56,7 +57,9 @@ function App() {
 
       const payload = {
         score,
-        temp: Math.round(wJson.current.temperature_2m),
+        tempNow: Math.round(wJson.current.temperature_2m),
+        tempMax: Math.round(wJson.daily.temperature_2m_max[0]),
+        tempMin: Math.round(wJson.daily.temperature_2m_min[0]),
         advice: score > 7 ? "🛑 Geamuri închise!" : score > 3 ? "⚠️ Evită ieșirile." : "✅ Aer curat.",
         forecast: wJson.daily.time.slice(1, 7).map((t: any, i: number) => ({
           day: new Date(t).toLocaleDateString('ro-RO', { weekday: 'short' }),
@@ -76,7 +79,7 @@ function App() {
     );
   }, []);
 
-  if (!data) return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a', color: 'white', fontFamily: 'system-ui, sans-serif' }}>Sincronizare...</div>;
+  if (!data) return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a', color: 'white', fontFamily: 'sans-serif' }}>Sincronizare...</div>;
 
   const theme = data.score < 3 ? { color: '#22c55e', bg: '#f0fdf4' } : 
                 data.score < 7 ? { color: '#f59e0b', bg: '#fffbeb' } : 
@@ -113,26 +116,29 @@ function App() {
       `}</style>
 
       <div className="container">
-        <header style={{ marginBottom: '30px' }}>
+        <header style={{ marginBottom: '25px' }}>
           <h1 style={{ fontSize: '1.4rem', fontWeight: '900', margin: 0, color: theme.color }}>{city.toUpperCase()}</h1>
           <p style={{ fontSize: '0.7rem', fontWeight: 'bold', opacity: 0.5, letterSpacing: '1px', marginTop: '5px' }}>POLLEN SCANNER PRO</p>
         </header>
 
         <div className="main-card" style={{ 
-          width: '240px', height: '240px', borderRadius: '50%', display: 'flex', flexDirection: 'column', 
+          width: '230px', height: '230px', borderRadius: '50%', display: 'flex', flexDirection: 'column', 
           alignItems: 'center', justifyContent: 'center', border: `12px solid ${theme.color}`, 
-          boxShadow: `0 20px 40px rgba(0,0,0,0.1)`, marginBottom: '30px'
+          boxShadow: `0 20px 40px rgba(0,0,0,0.1)`, marginBottom: '25px'
         }}>
           <span style={{ fontSize: '0.7rem', fontWeight: 'bold', opacity: 0.6 }}>INDICE</span>
           <span style={{ fontSize: '5rem', fontWeight: '950', lineHeight: 1 }}>{displayScore.toFixed(1)}</span>
           <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: theme.color }}>{data.score < 3 ? 'OPTIM' : data.score < 7 ? 'MODERAT' : 'PERICOL'}</span>
         </div>
 
-        <div style={{ marginBottom: '30px' }}>
-          <div style={{ fontSize: '2.8rem', fontWeight: '900' }}>{data.temp}°C</div>
+        <div style={{ marginBottom: '25px' }}>
+          <div style={{ fontSize: '3rem', fontWeight: '900', lineHeight: 1 }}>{data.tempNow}°C</div>
+          <div style={{ fontSize: '0.9rem', fontWeight: 'bold', opacity: 0.6, marginTop: '5px' }}>
+             {data.tempMin}° / {data.tempMax}°
+          </div>
           <div className="main-card" style={{ 
-            padding: '12px 25px', borderRadius: '18px', 
-            display: 'inline-block', fontSize: '0.9rem', fontWeight: '700', marginTop: '10px',
+            padding: '10px 20px', borderRadius: '15px', 
+            display: 'inline-block', fontSize: '0.85rem', fontWeight: '700', marginTop: '12px',
             boxShadow: '0 4px 10px rgba(0,0,0,0.05)'
           }}>
             {data.advice}
@@ -141,23 +147,23 @@ function App() {
 
         <div className="glass-card" style={{ 
           width: '100%', padding: '15px 10px', borderRadius: '24px', display: 'flex', justifyContent: 'space-around',
-          marginBottom: '30px'
+          marginBottom: '25px'
         }}>
           {data.forecast.map((f: any, i: number) => (
             <div key={i} style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.65rem', fontWeight: 'bold', opacity: 0.6, marginBottom: '5px' }}>{f.day.toUpperCase()}</div>
-              <div style={{ fontSize: '1.3rem', marginBottom: '5px' }}>{f.icon}</div>
-              <div style={{ fontSize: '0.85rem', fontWeight: '900' }}>{f.temp}°</div>
+              <div style={{ fontSize: '0.6rem', fontWeight: 'bold', opacity: 0.6, marginBottom: '5px' }}>{f.day.toUpperCase()}</div>
+              <div style={{ fontSize: '1.2rem', marginBottom: '5px' }}>{f.icon}</div>
+              <div style={{ fontSize: '0.8rem', fontWeight: '900' }}>{f.temp}°</div>
             </div>
           ))}
         </div>
 
-        <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
-          <button onClick={() => { localStorage.clear(); window.location.reload(); }} style={{ flex: 1, padding: '15px', borderRadius: '15px', border: 'none', background: '#1e293b', color: 'white', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.9rem' }}>ACTUALIZEAZĂ</button>
+        <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+          <button onClick={() => { localStorage.clear(); window.location.reload(); }} style={{ flex: 1, padding: '14px', borderRadius: '14px', border: 'none', background: '#1e293b', color: 'white', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem' }}>ACTUALIZEAZĂ</button>
           <button onClick={() => {
-            const t = `Polen în ${city}: ${data.score.toFixed(1)}. Temp: ${data.temp}°C.`;
+            const t = `Polen în ${city}: ${data.score.toFixed(1)}. Temp: ${data.tempNow}°C (${data.tempMin}-${data.tempMax}°).`;
             window.open(`https://wa.me/?text=${encodeURIComponent(t)}`);
-          }} style={{ padding: '15px 25px', borderRadius: '15px', border: 'none', background: theme.color, color: 'white', cursor: 'pointer', fontSize: '1.2rem' }}>📲</button>
+          }} style={{ padding: '14px 20px', borderRadius: '14px', border: 'none', background: theme.color, color: 'white', cursor: 'pointer', fontSize: '1.1rem' }}>📲</button>
         </div>
       </div>
     </div>
