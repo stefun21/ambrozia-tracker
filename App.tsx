@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
-const CACHE_KEY = 'ambrozia_dark_v1';
+const CACHE_KEY = 'ambrozia_final_balanced';
 const CACHE_TIME = 15 * 60 * 1000;
 
 const getWeatherIcon = (code: number) => {
@@ -73,17 +73,18 @@ function App() {
     );
   }, []);
 
-  if (!data) return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a', color: 'white' }}>Sincronizare...</div>;
+  if (!data) return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a', color: 'white', fontFamily: 'sans-serif' }}>Sincronizare...</div>;
 
-  const theme = data.score < 3 ? { color: '#22c55e', bg: '#f0fdf4', darkBg: '#064e3b' } : 
-                data.score < 7 ? { color: '#f59e0b', bg: '#fffbeb', darkBg: '#78350f' } : 
-                { color: '#ef4444', bg: '#fef2f2', darkBg: '#7f1d1d' };
+  const theme = data.score < 3 ? { color: '#22c55e', bg: '#f0fdf4' } : 
+                data.score < 7 ? { color: '#f59e0b', bg: '#fffbeb' } : 
+                { color: '#ef4444', bg: '#fef2f2' };
 
   return (
     <div className="app-shell" style={{ 
       height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', 
-      alignItems: 'center', justifyContent: 'space-between', padding: 'env(safe-area-inset-top) 20px env(safe-area-inset-bottom)',
-      boxSizing: 'border-box', overflow: 'hidden', transition: 'all 0.5s ease'
+      alignItems: 'center', justifyContent: 'center', padding: 'env(safe-area-inset-top) 20px env(safe-area-inset-bottom)',
+      boxSizing: 'border-box', overflow: 'hidden', transition: 'all 0.5s ease',
+      gap: 'clamp(15px, 4vh, 30px)' // Distanta flexibila intre elementele mari
     }}>
       <style>{`
         body { margin: 0; padding: 0; overflow: hidden; background-color: ${theme.bg}; }
@@ -98,55 +99,65 @@ function App() {
           .glass-card { background: rgba(30, 41, 59, 0.7) !important; color: white !important; }
           h1 { color: ${theme.color} !important; }
         }
+
+        /* Container care limiteaza latimea pe PC pentru a strange elementele */
+        .content-wrapper {
+          width: 100%;
+          maxWidth: 400px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: clamp(15px, 3vh, 35px);
+        }
       `}</style>
 
-      <header style={{ marginTop: '2vh', textAlign: 'center' }}>
-        <h1 style={{ fontSize: 'clamp(1rem, 5vw, 1.3rem)', fontWeight: '900', margin: 0, color: theme.color }}>{city.toUpperCase()}</h1>
-        <p style={{ fontSize: '0.65rem', fontWeight: '800', opacity: 0.5, letterSpacing: '1px', margin: 0 }}>POLLEN SCANNER PRO</p>
-      </header>
+      <div className="content-wrapper">
+        <header style={{ textAlign: 'center' }}>
+          <h1 style={{ fontSize: 'clamp(1rem, 5vw, 1.3rem)', fontWeight: '900', margin: 0, color: theme.color }}>{city.toUpperCase()}</h1>
+          <p style={{ fontSize: '0.65rem', fontWeight: '800', opacity: 0.5, letterSpacing: '1px', margin: '2px 0 0 0' }}>POLLEN SCANNER PRO</p>
+        </header>
 
-      <div className="main-card" style={{ 
-        width: 'clamp(180px, 50vh, 250px)', height: 'clamp(180px, 50vh, 250px)', 
-        borderRadius: '50%', display: 'flex', flexDirection: 'column', 
-        alignItems: 'center', justifyContent: 'center', border: `clamp(8px, 2vh, 12px) solid ${theme.color}`, 
-        boxShadow: `0 15px 35px rgba(0,0,0,0.1)`, position: 'relative', transition: 'background 0.5s'
-      }}>
-        <span style={{ fontSize: '0.65rem', fontWeight: 'bold', opacity: 0.6 }}>INDICE</span>
-        <span style={{ fontSize: 'clamp(3rem, 11vh, 5rem)', fontWeight: '950', lineHeight: 1 }}>{displayScore.toFixed(1)}</span>
-        <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: theme.color }}>{data.score < 3 ? 'OPTIM' : data.score < 7 ? 'MODERAT' : 'PERICOL'}</span>
-      </div>
-
-      <div style={{ textAlign: 'center', width: '100%' }}>
-        <div style={{ fontSize: 'clamp(2rem, 7vh, 3rem)', fontWeight: '900', lineHeight: 1 }}>{data.temp}°C</div>
         <div className="main-card" style={{ 
-          padding: '10px 20px', borderRadius: '15px', 
-          display: 'inline-block', fontSize: '0.85rem', fontWeight: '700', marginTop: '10px',
-          boxShadow: '0 4px 10px rgba(0,0,0,0.05)'
+          width: 'clamp(180px, 45vh, 250px)', height: 'clamp(180px, 45vh, 250px)', 
+          borderRadius: '50%', display: 'flex', flexDirection: 'column', 
+          alignItems: 'center', justifyContent: 'center', border: `clamp(8px, 2vh, 12px) solid ${theme.color}`, 
+          boxShadow: `0 15px 35px rgba(0,0,0,0.1)`, position: 'relative'
         }}>
-          {data.advice}
+          <span style={{ fontSize: '0.65rem', fontWeight: 'bold', opacity: 0.6 }}>INDICE</span>
+          <span style={{ fontSize: 'clamp(3rem, 10vh, 5rem)', fontWeight: '950', lineHeight: 1 }}>{displayScore.toFixed(1)}</span>
+          <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: theme.color }}>{data.score < 3 ? 'OPTIM' : data.score < 7 ? 'MODERAT' : 'PERICOL'}</span>
         </div>
-      </div>
 
-      <div className="glass-card" style={{ 
-        width: '100%', maxWidth: '400px', 
-        padding: '12px 5px', borderRadius: '20px', display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)',
-        marginBottom: '1vh'
-      }}>
-        {data.forecast.map((f: any, i: number) => (
-          <div key={i} style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '0.55rem', fontWeight: 'bold', opacity: 0.6 }}>{f.day}</div>
-            <div style={{ fontSize: '1.1rem', margin: '2px 0' }}>{f.icon}</div>
-            <div style={{ fontSize: '0.75rem', fontWeight: '900' }}>{f.temp}°</div>
+        <div style={{ textAlign: 'center', width: '100%' }}>
+          <div style={{ fontSize: 'clamp(2rem, 6vh, 2.8rem)', fontWeight: '900', lineHeight: 1 }}>{data.temp}°C</div>
+          <div className="main-card" style={{ 
+            padding: '10px 20px', borderRadius: '15px', 
+            display: 'inline-block', fontSize: '0.85rem', fontWeight: '700', marginTop: '10px',
+            boxShadow: '0 4px 10px rgba(0,0,0,0.05)'
+          }}>
+            {data.advice}
           </div>
-        ))}
-      </div>
+        </div>
 
-      <div style={{ marginBottom: '2vh', display: 'flex', gap: '10px', width: '100%', maxWidth: '400px' }}>
-        <button onClick={() => { localStorage.clear(); window.location.reload(); }} style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', background: '#1e293b', color: 'white', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.8rem' }}>REFRESH</button>
-        <button onClick={() => {
-          const t = `Polen în ${city}: ${data.score.toFixed(1)}. Temp: ${data.temp}°C.`;
-          window.open(`https://wa.me/?text=${encodeURIComponent(t)}`);
-        }} style={{ padding: '12px 20px', borderRadius: '12px', border: 'none', background: theme.color, color: 'white', cursor: 'pointer' }}>📲</button>
+        <div className="glass-card" style={{ 
+          width: '100%', padding: '12px 5px', borderRadius: '20px', display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)'
+        }}>
+          {data.forecast.map((f: any, i: number) => (
+            <div key={i} style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.55rem', fontWeight: 'bold', opacity: 0.6 }}>{f.day}</div>
+              <div style={{ fontSize: '1.1rem', margin: '2px 0' }}>{f.icon}</div>
+              <div style={{ fontSize: '0.75rem', fontWeight: '900' }}>{f.temp}°</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+          <button onClick={() => { localStorage.clear(); window.location.reload(); }} style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', background: '#1e293b', color: 'white', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.8rem' }}>REFRESH</button>
+          <button onClick={() => {
+            const t = `Polen în ${city}: ${data.score.toFixed(1)}. Temp: ${data.temp}°C.`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(t)}`);
+          }} style={{ padding: '12px 20px', borderRadius: '12px', border: 'none', background: theme.color, color: 'white', cursor: 'pointer' }}>📲</button>
+        </div>
       </div>
     </div>
   );
