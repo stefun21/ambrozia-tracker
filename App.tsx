@@ -56,12 +56,7 @@ function App() {
         icon: getWeatherIcon(wJson.daily.weather_code[i + 1])
       }));
 
-      setData({
-        score,
-        temp: Math.round(wJson.current?.temperature_2m || 0),
-        funny: getFunnyMessage(wJson.current?.temperature_2m, wJson.current?.wind_speed_10m, wJson.current?.rain),
-        forecast
-      });
+      setData({ score, temp: Math.round(wJson.current?.temperature_2m || 0), funny: getFunnyMessage(wJson.current?.temperature_2m, wJson.current?.wind_speed_10m, wJson.current?.rain), forecast });
     } catch (e) { setError("Satelitul e în pauză..."); }
   };
 
@@ -71,41 +66,102 @@ function App() {
     } else { updateData(44.43, 26.10); }
   }, []);
 
-  if (!data) return <div style={{height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif'}}>Se caută semnal...</div>;
+  if (!data) return <div style={{height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif', backgroundColor: '#F9FAFB'}}>Se pregătește terenul...</div>;
 
   const theme = data.score < 3 ? { bg: '#F0FDF4', circle: '#22C55E', text: '#166534' } : 
                 data.score < 7 ? { bg: '#FFFBEB', circle: '#F59E0B', text: '#92400E' } : 
                 { bg: '#FEF2F2', circle: '#EF4444', text: '#991B1B' };
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: theme.bg, fontFamily: 'system-ui, sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 20px', transition: 'all 0.5s' }}>
-      <h1 style={{ fontSize: '1.2rem', fontWeight: '900', color: theme.text, letterSpacing: '2px', marginBottom: '30px' }}>{city.toUpperCase()}</h1>
-      
-      <div style={{ 
-        width: '240px', height: '240px', borderRadius: '50%', background: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        boxShadow: `0 20px 40px ${theme.circle}33`, border: `12px solid ${theme.circle}`, marginBottom: '30px'
-      }}>
-        <div style={{ fontSize: '0.7rem', fontWeight: 'bold', color: '#94A3B8' }}>INDICE POLEN</div>
-        <div style={{ fontSize: '5rem', fontWeight: '950', color: '#1E293B', lineHeight: 1 }}>{data.score.toFixed(1)}</div>
-        <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: theme.circle }}>{data.score < 3 ? 'OK' : data.score < 7 ? 'ATENȚIE' : 'PERICOL'}</div>
-      </div>
+    <div style={{ 
+      minHeight: '100vh', 
+      backgroundColor: theme.bg, 
+      fontFamily: 'system-ui, -apple-system, sans-serif', 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center', 
+      padding: 'clamp(20px, 5vh, 60px) 20px', 
+      transition: 'all 0.5s ease',
+      boxSizing: 'border-box'
+    }}>
+      {/* Container principal care limiteaza latimea pe PC */}
+      <div style={{ width: '100%', maxWidth: '450px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        
+        <header style={{ marginBottom: 'clamp(20px, 4vh, 40px)', textAlign: 'center' }}>
+          <h1 style={{ fontSize: 'clamp(1.1rem, 4vw, 1.5rem)', fontWeight: '900', color: theme.text, letterSpacing: '2px', margin: '0 0 5px 0' }}>
+            {city.toUpperCase()}
+          </h1>
+          <div style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 'bold', letterSpacing: '1px' }}>TRACKER POLEN LIVE</div>
+        </header>
+        
+        {/* Cercul central - Scalabil */}
+        <div style={{ 
+          width: 'clamp(200px, 60vw, 280px)', 
+          height: 'clamp(200px, 60vw, 280px)', 
+          borderRadius: '50%', 
+          background: 'white', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          boxShadow: `0 20px 40px ${theme.circle}25`, 
+          border: `clamp(8px, 2vw, 14px) solid ${theme.circle}`, 
+          marginBottom: 'clamp(20px, 4vh, 40px)'
+        }}>
+          <div style={{ fontSize: '0.7rem', fontWeight: 'bold', color: '#94A3B8' }}>INDICE POLEN</div>
+          <div style={{ fontSize: 'clamp(3.5rem, 15vw, 5.5rem)', fontWeight: '950', color: '#1E293B', lineHeight: 1 }}>{data.score.toFixed(1)}</div>
+          <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: theme.circle }}>{data.score < 3 ? 'OK' : data.score < 7 ? 'ATENȚIE' : 'PERICOL'}</div>
+        </div>
 
-      <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-        <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#1E293B' }}>{data.temp}°C</div>
-        <p style={{ maxWidth: '280px', fontSize: '0.9rem', fontWeight: '600', color: '#475569', fontStyle: 'italic' }}>"{data.funny}"</p>
-      </div>
-
-      <div style={{ width: '100%', maxWidth: '400px', background: 'rgba(255,255,255,0.5)', borderRadius: '20px', padding: '15px', display: 'flex', justifyContent: 'space-between' }}>
-        {data.forecast.map((f: any, i: number) => (
-          <div key={i} style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '0.7rem', fontWeight: 'bold', color: '#64748B', textTransform: 'uppercase' }}>{f.day}</div>
-            <div style={{ fontSize: '1.2rem', margin: '3px 0' }}>{f.icon}</div>
-            <div style={{ fontSize: '0.8rem', fontWeight: '900' }}>{f.temp}°</div>
+        {/* Temperatura si mesaj */}
+        <div style={{ textAlign: 'center', marginBottom: 'clamp(20px, 5vh, 50px)', width: '100%' }}>
+          <div style={{ fontSize: 'clamp(2rem, 8vw, 3rem)', fontWeight: '900', color: '#1E293B', marginBottom: '10px' }}>{data.temp}°C</div>
+          <div style={{ padding: '0 10px' }}>
+            <p style={{ fontSize: 'clamp(0.85rem, 3.5vw, 1rem)', fontWeight: '600', color: '#475569', fontStyle: 'italic', lineHeight: '1.5', margin: 0 }}>
+              "{data.funny}"
+            </p>
           </div>
-        ))}
-      </div>
+        </div>
 
-      <button onClick={() => window.location.reload()} style={{ marginTop: '30px', padding: '10px 25px', borderRadius: '12px', border: 'none', background: '#1E293B', color: 'white', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.8rem' }}>ACTUALIZEAZĂ</button>
+        {/* Prognoza pe 6 zile - Responsive Grid */}
+        <div style={{ 
+          width: '100%', 
+          background: 'rgba(255,255,255,0.4)', 
+          borderRadius: '24px', 
+          padding: '20px 10px', 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(6, 1fr)', 
+          gap: '5px',
+          boxShadow: '0 4px 15px rgba(0,0,0,0.02)'
+        }}>
+          {data.forecast.map((f: any, i: number) => (
+            <div key={i} style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.65rem', fontWeight: 'bold', color: '#64748B', textTransform: 'uppercase', marginBottom: '4px' }}>{f.day}</div>
+              <div style={{ fontSize: '1.2rem', marginBottom: '4px' }}>{f.icon}</div>
+              <div style={{ fontSize: '0.85rem', fontWeight: '900', color: '#1E293B' }}>{f.temp}°</div>
+            </div>
+          ))}
+        </div>
+
+        <button 
+          onClick={() => window.location.reload()} 
+          style={{ 
+            marginTop: 'clamp(25px, 5vh, 40px)', 
+            padding: '12px 30px', 
+            borderRadius: '16px', 
+            border: 'none', 
+            background: '#1E293B', 
+            color: 'white', 
+            fontWeight: 'bold', 
+            cursor: 'pointer', 
+            fontSize: '0.9rem',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            width: 'fit-content'
+          }}
+        >
+          ACTUALIZEAZĂ
+        </button>
+      </div>
     </div>
   );
 }
