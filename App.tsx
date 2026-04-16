@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
-// --- UTILS ---
-const CACHE_KEY = 'ambrozia_final_v1';
+const CACHE_KEY = 'ambrozia_dark_v1';
 const CACHE_TIME = 15 * 60 * 1000;
 
 const getWeatherIcon = (code: number) => {
@@ -40,23 +39,18 @@ function App() {
           setData(p.data); setCity(p.city); return;
         }
       }
-
       const cRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=ro`);
       const cJson = await cRes.json();
       const name = namePrefix + (cJson.city || cJson.locality || "Oraș");
-
       const [wRes, aRes] = await Promise.all([
         fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&daily=temperature_2m_max,weather_code&timezone=auto`),
         fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=birch_pollen,grass_pollen,ragweed_pollen&timezone=auto`)
       ]);
-
       const wJson = await wRes.json();
       const aJson = await aRes.json();
       const h = new Date().getHours();
-
       const nowVal = (aJson.hourly?.birch_pollen?.[h] || 0) + (aJson.hourly?.grass_pollen?.[h] || 0) + (aJson.hourly?.ragweed_pollen?.[h] || 0);
       const score = Math.min(nowVal / 15, 10);
-
       const payload = {
         score,
         temp: Math.round(wJson.current.temperature_2m),
@@ -67,7 +61,6 @@ function App() {
           icon: getWeatherIcon(wJson.daily.weather_code[i + 1])
         }))
       };
-
       setData(payload); setCity(name);
       localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: payload, city: name, lat: lat.toFixed(2) }));
     } catch (e) { console.error(e); }
@@ -80,27 +73,30 @@ function App() {
     );
   }, []);
 
-  if (!data) return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', fontWeight: 'bold' }}>Sincronizare satelit...</div>;
+  if (!data) return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a', color: 'white' }}>Sincronizare...</div>;
 
-  const theme = data.score < 3 ? { color: '#22c55e', bg: '#f0fdf4' } : 
-                data.score < 7 ? { color: '#f59e0b', bg: '#fffbeb' } : 
-                { color: '#ef4444', bg: '#fef2f2' };
+  const theme = data.score < 3 ? { color: '#22c55e', bg: '#f0fdf4', darkBg: '#064e3b' } : 
+                data.score < 7 ? { color: '#f59e0b', bg: '#fffbeb', darkBg: '#78350f' } : 
+                { color: '#ef4444', bg: '#fef2f2', darkBg: '#7f1d1d' };
 
   return (
-    <div style={{ 
-      height: '100vh', width: '100vw', backgroundColor: theme.bg, color: '#1e293b', 
-      fontFamily: 'system-ui, sans-serif', display: 'flex', flexDirection: 'column', 
+    <div className="app-shell" style={{ 
+      height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', 
       alignItems: 'center', justifyContent: 'space-between', padding: 'env(safe-area-inset-top) 20px env(safe-area-inset-bottom)',
-      boxSizing: 'border-box', overflow: 'hidden'
+      boxSizing: 'border-box', overflow: 'hidden', transition: 'all 0.5s ease'
     }}>
-      {/* Stiluri globale pentru resetare margini si scroll */}
       <style>{`
-        body { margin: 0; padding: 0; overflow: hidden; width: 100vw; height: 100vh; }
+        body { margin: 0; padding: 0; overflow: hidden; background-color: ${theme.bg}; }
+        .app-shell { background-color: ${theme.bg}; color: #1e293b; }
+        .main-card { background: white; color: #1e293b; }
+        .glass-card { background: rgba(255, 255, 255, 0.4); color: #1e293b; }
+        
         @media (prefers-color-scheme: dark) {
           body { background-color: #0f172a; }
-          .circle-bg { background: #1e293b !important; color: white !important; }
-          .card-bg { background: rgba(30, 41, 59, 0.7) !important; color: white !important; }
-          .app-wrapper { background-color: #0f172a !important; color: #f1f5f9 !important; }
+          .app-shell { background-color: #0f172a; color: #f1f5f9; }
+          .main-card { background: #1e293b !important; color: white !important; }
+          .glass-card { background: rgba(30, 41, 59, 0.7) !important; color: white !important; }
+          h1 { color: ${theme.color} !important; }
         }
       `}</style>
 
@@ -109,32 +105,32 @@ function App() {
         <p style={{ fontSize: '0.65rem', fontWeight: '800', opacity: 0.5, letterSpacing: '1px', margin: 0 }}>POLLEN SCANNER PRO</p>
       </header>
 
-      <div className="circle-bg" style={{ 
-        width: 'clamp(180px, 55vh, 260px)', height: 'clamp(180px, 55vh, 260px)', 
-        borderRadius: '50%', background: 'white', display: 'flex', flexDirection: 'column', 
+      <div className="main-card" style={{ 
+        width: 'clamp(180px, 50vh, 250px)', height: 'clamp(180px, 50vh, 250px)', 
+        borderRadius: '50%', display: 'flex', flexDirection: 'column', 
         alignItems: 'center', justifyContent: 'center', border: `clamp(8px, 2vh, 12px) solid ${theme.color}`, 
-        boxShadow: `0 15px 35px ${theme.color}33`, position: 'relative'
+        boxShadow: `0 15px 35px rgba(0,0,0,0.1)`, position: 'relative', transition: 'background 0.5s'
       }}>
-        <span style={{ fontSize: '0.65rem', fontWeight: 'bold', color: '#94a3b8' }}>INDICE</span>
-        <span style={{ fontSize: 'clamp(3rem, 12vh, 5rem)', fontWeight: '950', lineHeight: 1 }}>{displayScore.toFixed(1)}</span>
+        <span style={{ fontSize: '0.65rem', fontWeight: 'bold', opacity: 0.6 }}>INDICE</span>
+        <span style={{ fontSize: 'clamp(3rem, 11vh, 5rem)', fontWeight: '950', lineHeight: 1 }}>{displayScore.toFixed(1)}</span>
         <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: theme.color }}>{data.score < 3 ? 'OPTIM' : data.score < 7 ? 'MODERAT' : 'PERICOL'}</span>
       </div>
 
       <div style={{ textAlign: 'center', width: '100%' }}>
-        <div style={{ fontSize: 'clamp(2rem, 8vh, 3rem)', fontWeight: '900', lineHeight: 1 }}>{data.temp}°C</div>
-        <div className="card-bg" style={{ 
-          background: 'white', padding: '10px 20px', borderRadius: '15px', 
+        <div style={{ fontSize: 'clamp(2rem, 7vh, 3rem)', fontWeight: '900', lineHeight: 1 }}>{data.temp}°C</div>
+        <div className="main-card" style={{ 
+          padding: '10px 20px', borderRadius: '15px', 
           display: 'inline-block', fontSize: '0.85rem', fontWeight: '700', marginTop: '10px',
-          boxShadow: '0 4px 10px rgba(0,0,0,0.03)'
+          boxShadow: '0 4px 10px rgba(0,0,0,0.05)'
         }}>
           {data.advice}
         </div>
       </div>
 
-      <div className="card-bg" style={{ 
-        width: '100%', maxWidth: '400px', background: 'rgba(255,255,255,0.4)', 
+      <div className="glass-card" style={{ 
+        width: '100%', maxWidth: '400px', 
         padding: '12px 5px', borderRadius: '20px', display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)',
-        marginBottom: '2vh'
+        marginBottom: '1vh'
       }}>
         {data.forecast.map((f: any, i: number) => (
           <div key={i} style={{ textAlign: 'center' }}>
