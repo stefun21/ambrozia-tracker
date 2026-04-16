@@ -18,24 +18,34 @@ function App() {
 
   const updateData = async (lat: number, lon: number) => {
     try {
-      // Chemăm API-ul Meteo principal pentru temperatură (cel mai stabil)
+      // Luăm temperatura (Weather API)
       const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m&timezone=auto`);
       const weatherJson = await weatherRes.json();
 
-      // Chemăm API-ul de Air Quality pentru Ambrozie
-      const airRes = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=ragweed_pollen&timezone=auto`);
+      // Luăm TOATE tipurile de polen (Air Quality API)
+      const airRes = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=birch_pollen,grass_pollen,ragweed_pollen,alder_pollen,mugwort_pollen,olive_pollen&timezone=auto`);
       const airJson = await airRes.json();
       
-      const hour = new Date().getHours();
+      const h = new Date().getHours();
+      
+      // Facem suma tuturor grăunțelor de polen detectate în aer acum
+      const totalPollen = (
+        (airJson.hourly?.birch_pollen?.[h] || 0) +
+        (airJson.hourly?.grass_pollen?.[h] || 0) +
+        (airJson.hourly?.ragweed_pollen?.[h] || 0) +
+        (airJson.hourly?.alder_pollen?.[h] || 0) +
+        (airJson.hourly?.mugwort_pollen?.[h] || 0) +
+        (airJson.hourly?.olive_pollen?.[h] || 0)
+      );
       
       setData({
-        ambrozie: airJson.hourly?.ragweed_pollen?.[hour] ?? 0,
+        pollen: totalPollen,
         temp: Math.round(weatherJson.current?.temperature_2m ?? 0)
       });
       
       await getCityName(lat, lon);
     } catch (e) {
-      setError("Eroare la preluarea datelor live.");
+      setError("Eroare la conectarea cu satelitul.");
     }
   };
 
@@ -43,8 +53,7 @@ function App() {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (p) => updateData(p.coords.latitude, p.coords.longitude),
-        () => updateData(44.43, 26.10),
-        { enableHighAccuracy: true }
+        () => updateData(44.43, 26.10)
       );
     } else {
       updateData(44.43, 26.10);
@@ -52,15 +61,21 @@ function App() {
   }, []);
 
   if (error) return <div style={{padding: '50px', textAlign: 'center', color: 'red'}}>{error}</div>;
-  if (!data) return <div style={{padding: '50px', textAlign: 'center', fontFamily: 'sans-serif'}}>Se conectează la satelit...</div>;
+  if (!data) return <div style={{padding: '50px', textAlign: 'center', fontFamily: 'sans-serif'}}>Se calculează polenul din aer...</div>;
 
-  const pollenLevel = data.ambrozie;
-  const isSafe = pollenLevel < 1;
+  // Logica de culori pentru Polul Total (limitele sunt mai mari la suma decat la ambrozie singura)
+  const getTheme = (v: number) => {
+    if (v < 10) return { bg: '#ECFDF5', border: '#10B981', label: 'SCĂZUT' };
+    if (v < 50) return { bg: '#FEF3C7', border: '#F59E0B', label: 'MODERAT' };
+    return { bg: '#FEF2F2', border: '#EF4444', label: 'RIDICAT' };
+  };
+
+  const theme = getTheme(data.pollen);
 
   return (
     <div style={{ 
       minHeight: '100vh', 
-      backgroundColor: isSafe ? '#ECFDF5' : '#FEF2F2', 
+      backgroundColor: theme.bg, 
       fontFamily: 'system-ui, -apple-system, sans-serif',
       display: 'flex',
       flexDirection: 'column',
@@ -68,13 +83,13 @@ function App() {
       justifyContent: 'center',
       padding: '20px',
       color: '#111827',
-      transition: 'background-color 0.8s ease'
+      transition: 'all 0.5s ease'
     }}>
       <header style={{ marginBottom: '40px', textAlign: 'center' }}>
-        <h1 style={{ fontSize: '1.4rem', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '5px' }}>
+        <h1 style={{ fontSize: '1.4rem', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '2px' }}>
           {city}
         </h1>
-        <div style={{ fontSize: '0.8rem', color: '#6B7280', fontWeight: '600', letterSpacing: '1px' }}>TRACKER POLEN LIVE</div>
+        <div style={{ fontSize: '0.8rem', color: '#6B7280', fontWeight: 'bold' }}>TRACKER POLEN LIVE</div>
       </header>
       
       <div style={{ 
@@ -87,12 +102,13 @@ function App() {
         alignItems: 'center', 
         justifyContent: 'center',
         boxShadow: '0 25px 50px -12px rgba(0,0,0,0.1)',
-        border: `10px solid ${isSafe ? '#10B981' : '#EF4444'}`,
-        position: 'relative'
+        border: `12px solid ${theme.border}`,
       }}>
-        <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#9CA3AF', letterSpacing: '1px' }}>AMBROZIE</div>
-        <div style={{ fontSize: '5.5rem', fontWeight: '900', lineHeight: 1, margin: '5px 0' }}>{pollenLevel.toFixed(1)}</div>
-        <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#9CA3AF' }}>GR / M³</div>
+        <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#9CA3AF' }}>INDICE TOTAL</div>
+        <div style={{ fontSize: '5rem', fontWeight: '900', lineHeight: 1, margin: '5px 0' }}>
+          {data.pollen.toFixed(0)}
+        </div>
+        <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: theme.border }}>{theme.label}</div>
       </div>
 
       <div style={{ marginTop: '50px', textAlign: 'center' }}>
@@ -100,26 +116,23 @@ function App() {
           <span style={{ fontSize: '1.5rem' }}>🌡️</span>
           <span style={{ fontSize: '3rem', fontWeight: '900' }}>{data.temp}°C</span>
         </div>
-        <div style={{ fontSize: '0.85rem', color: '#6B7280', fontWeight: 'bold', marginTop: '5px' }}>TEMPERATURĂ ACTUALĂ</div>
+        <div style={{ fontSize: '0.85rem', color: '#6B7280', fontWeight: 'bold' }}>TEMPERATURĂ ACTUALĂ</div>
       </div>
 
       <button 
         onClick={() => window.location.reload()}
         style={{ 
-          marginTop: '60px', 
-          padding: '15px 35px', 
-          borderRadius: '20px', 
+          marginTop: '50px', 
+          padding: '12px 30px', 
+          borderRadius: '15px', 
           border: 'none', 
           background: '#111827', 
           color: 'white', 
-          fontWeight: '900',
-          fontSize: '0.9rem',
-          cursor: 'pointer',
-          boxShadow: '0 10px 15px rgba(0,0,0,0.2)',
-          textTransform: 'uppercase'
+          fontWeight: 'bold',
+          cursor: 'pointer'
         }}
       >
-        Actualizează
+        ACTUALIZEAZĂ
       </button>
     </div>
   );
