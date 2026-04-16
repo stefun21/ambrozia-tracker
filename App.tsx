@@ -6,14 +6,6 @@ function App() {
   const [city, setCity] = useState<string>("Locație...");
   const [error, setError] = useState<string | null>(null);
 
-  const getCityName = async (lat: number, lon: number) => {
-    try {
-      const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=ro`);
-      const json = await res.json();
-      setCity(json.city || json.locality || "Orașul tău");
-    } catch (e) { setCity("Locația Ta"); }
-  };
-
   const getFunnyMessage = (temp: number, wind: number, rain: number) => {
     const messages = {
       heat: [
@@ -62,16 +54,22 @@ function App() {
 
   const updateData = async (lat: number, lon: number) => {
     try {
+      // Nume oras
+      const cRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=ro`);
+      const cJson = await cRes.json();
+      setCity(cJson.city || cJson.locality || "Orașul tău");
+
+      // Vreme
       const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m,rain&timezone=auto`);
       const wJson = await wRes.json();
       
+      // Polen
       const aRes = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=birch_pollen,grass_pollen,ragweed_pollen,alder_pollen&timezone=auto`);
       const aJson = await aRes.json();
       
       const h = new Date().getHours();
-      const rawPollen = (aJson.hourly?.birch_pollen?.[h] || 0) + (aJson.hourly?.grass_pollen?.[h] || 0) + (aJson.hourly?.ragweed_pollen?.[h] || 0) + (aJson.hourly?.alder_pollen?.[h] || 0);
+      const rawPollen = (aJson.hourly?.birch_pollen?.[h] || 0) + (aJson.hourly?.grass_pollen?.[h] || 0) + (aJson.hourly?.ragweed_pollen?.[h] || 0);
       
-      // Scara 0-10: 150 total polen = Nota 10
       let score = (rawPollen / 15); 
       if (score > 10) score = 10;
       if (score < 0.1 && rawPollen > 0) score = 0.5;
@@ -79,13 +77,10 @@ function App() {
       setData({
         score: score,
         temp: Math.round(wJson.current?.temperature_2m || 0),
-        wind: wJson.current?.wind_speed_10m || 0,
-        rain: wJson.current?.rain || 0,
         funny: getFunnyMessage(wJson.current?.temperature_2m, wJson.current?.wind_speed_10m, wJson.current?.rain)
       });
-      await getCityName(lat, lon);
     } catch (e) { 
-      setError("Satelitul e în pauză de masă..."); 
+      setError("Eroare la conexiune..."); 
     }
   };
 
@@ -93,15 +88,13 @@ function App() {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (p) => updateData(p.coords.latitude, p.coords.longitude), 
-        () => updateData(44.43, 26.10),
-        { timeout: 10000 }
+        () => updateData(44.43, 26.10)
       );
     } else { 
       updateData(44.43, 26.10); 
     }
   }, []);
 
-  if (error) return <div style={{height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '20px'}}>{error}</div>;
   if (!data) return <div style={{height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif'}}>Se calculează zen-ul...</div>;
 
   const getColors = (v: number) => {
@@ -120,4 +113,30 @@ function App() {
       <h1 style={{ fontSize: '1.2rem', fontWeight: '900', color: theme.text, letterSpacing: '2px', marginBottom: '40px' }}>{city.toUpperCase()}</h1>
       
       <div style={{ 
-        width: '260px', height: '260px', borderRadius: '5
+        width: '260px', height: '260px', borderRadius: '50%', background: 'white',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        boxShadow: `0 20px 40px ${theme.circle}33`, border: `12px solid ${theme.circle}`
+      }}>
+        <div style={{ fontSize: '0.7rem', fontWeight: 'bold', color: '#94A3B8' }}>NIVEL POLEN</div>
+        <div style={{ fontSize: '5rem', fontWeight: '950', color: '#1E293B', lineHeight: 1 }}>{data.score.toFixed(1)}</div>
+        <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: theme.circle }}>{data.score < 3 ? 'OK' : data.score < 7 ? 'ATENȚIE' : 'PERICOL'}</div>
+      </div>
+
+      <div style={{ marginTop: '40px', textAlign: 'center' }}>
+        <div style={{ fontSize: '3rem', fontWeight: '900', color: '#1E293B' }}>{data.temp}°C</div>
+        <p style={{ maxWidth: '280px', fontSize: '1rem', fontWeight: '600', color: '#475569', marginTop: '15px', fontStyle: 'italic', lineHeight: '1.4' }}>
+          "{data.funny}"
+        </p>
+      </div>
+
+      <button onClick={() => window.location.reload()} style={{ marginTop: '40px', padding: '12px 30px', borderRadius: '15px', border: 'none', background: '#1E293B', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>
+        REPROSPECTEAZĂ
+      </button>
+    </div>
+  );
+}
+
+const container = document.getElementById('root');
+const root = createRoot(container!);
+root.render(<App />);
+export default App;
