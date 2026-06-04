@@ -130,7 +130,7 @@ function estimateRagweedScore(params: {
   const rainFactor = rain > 3 ? 0.32 : rain > 0.4 ? 0.58 : 1.0;
   const particlesFactor = clamp(0.85 + pm10 / 85 + pm25 / 140 + dust / 260, 0.85, 1.36);
   const raw =
-    8.8 *
+    18.5 *
     season *
     region *
     tempFactor *
