@@ -4,7 +4,7 @@ import { createRoot } from "react-dom/client";
 const DEFAULT_LAT = 44.4268;
 const DEFAULT_LON = 26.1025;
 const DEFAULT_CITY = "București";
-const CACHE_KEY = "ambrozie_premium_mobile_v1";
+const CACHE_KEY = "ambrozie_premium_mobile_v2_calibrated";
 const CACHE_TIME_MS = 10 * 60 * 1000;
 
 type DataSource = "Live" | "Estimare" | "Mixt";
@@ -130,32 +130,28 @@ function estimateRagweedScore(params: {
   const rainFactor = rain > 3 ? 0.32 : rain > 0.4 ? 0.58 : 1.0;
   const particlesFactor = clamp(0.85 + pm10 / 85 + pm25 / 140 + dust / 260, 0.85, 1.36);
   const raw =
-  8.8 *
-  season *
-  region *
-  tempFactor *
-  humidityFactor *
-  windFactor *
-  rainFactor *
-  particlesFactor;
+    8.8 *
+    season *
+    region *
+    tempFactor *
+    humidityFactor *
+    windFactor *
+    rainFactor *
+    particlesFactor;
 
-// minim realist pentru România în sezon
-let softMinimum = 0.8 * season * region;
+  let softMinimum = 0.8 * season * region;
 
-const isRomania =
-  params.lat >= 43 &&
-  params.lat <= 49 &&
-  params.lon >= 20 &&
-  params.lon <= 30;
+  const isRomania =
+    params.lat >= 43 &&
+    params.lat <= 49 &&
+    params.lon >= 20 &&
+    params.lon <= 30;
 
-const month = (params.date ?? new Date()).getMonth() + 1;
+  const month = (params.date ?? new Date()).getMonth() + 1;
 
-if (isRomania && month >= 7 && month <= 10) {
-  softMinimum = Math.max(softMinimum, 3.2);
-}
-
-return clamp(Math.max(raw, softMinimum), 0.2, 10);
-  const softMinimum = 0.8 * season * region;
+  if (isRomania && month >= 7 && month <= 10) {
+    softMinimum = Math.max(softMinimum, 3.2);
+  }
 
   return clamp(Math.max(raw, softMinimum), 0.2, 10);
 }
@@ -197,7 +193,7 @@ function computeFinalScore(rawRagweed: number, estimatedScore: number) {
 
   if (rawRagweed > 0 && liveScore > 0) {
     return {
-      score: clamp(liveScore * 0.7 + estimatedScore * 0.3, 0, 10),
+      score: clamp(liveScore * 0.4 + estimatedScore * 0.6, 0, 10),
       source: "Mixt" as DataSource,
     };
   }
