@@ -129,7 +129,32 @@ function estimateRagweedScore(params: {
   const windFactor = wind < 3 ? 0.78 : wind <= 15 ? 1.06 : 0.84;
   const rainFactor = rain > 3 ? 0.32 : rain > 0.4 ? 0.58 : 1.0;
   const particlesFactor = clamp(0.85 + pm10 / 85 + pm25 / 140 + dust / 260, 0.85, 1.36);
-  const raw = 3.65 * season * region * tempFactor * humidityFactor * windFactor * rainFactor * particlesFactor;
+  const raw =
+  8.8 *
+  season *
+  region *
+  tempFactor *
+  humidityFactor *
+  windFactor *
+  rainFactor *
+  particlesFactor;
+
+// minim realist pentru România în sezon
+let softMinimum = 0.8 * season * region;
+
+const isRomania =
+  params.lat >= 43 &&
+  params.lat <= 49 &&
+  params.lon >= 20 &&
+  params.lon <= 30;
+
+const month = (params.date ?? new Date()).getMonth() + 1;
+
+if (isRomania && month >= 7 && month <= 10) {
+  softMinimum = Math.max(softMinimum, 3.2);
+}
+
+return clamp(Math.max(raw, softMinimum), 0.2, 10);
   const softMinimum = 0.8 * season * region;
 
   return clamp(Math.max(raw, softMinimum), 0.2, 10);
