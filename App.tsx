@@ -4,7 +4,7 @@ import { createRoot } from "react-dom/client";
 const DEFAULT_LAT = 44.4268;
 const DEFAULT_LON = 26.1025;
 const DEFAULT_CITY = "București";
-const CACHE_KEY = "ambrozie_free_v1";
+const CACHE_KEY = "ambrozie_free_v3_score_10";
 const CACHE_TIME_MS = 10 * 60 * 1000;
 
 type DataSource = "Live" | "Estimare" | "Mixt";
@@ -30,6 +30,7 @@ type AppData = {
   pm25: number | null;
   dust: number | null;
   weatherCode: number | null;
+  level: string;
   message: string;
   explanation: string;
   forecast: ForecastDay[];
@@ -62,37 +63,46 @@ function weatherIcon(code: number | null) {
   return "☁️";
 }
 
+function getLevel(score: number) {
+  if (score < 1) return "Foarte scăzut";
+  if (score < 3) return "Scăzut";
+  if (score < 5) return "Moderat";
+  if (score < 7) return "Ridicat";
+  return "Foarte ridicat";
+}
+
 function getSeasonFactor(date = new Date()) {
   const month = date.getMonth() + 1;
   const day = date.getDate();
-  const dayOfYear = Math.floor((date.getTime() - new Date(date.getFullYear(), 0, 0).getTime()) / 86400000);
 
-  // Ambrozia este de obicei relevantă din iulie până în octombrie,
-  // cu vârf frecvent la final de august / septembrie.
-  if (month < 6 || month > 11) return 0.15;
-  if (month === 6) return 0.35;
-  if (month === 7) return 0.65;
-  if (month === 8) return 0.9;
+  // Ambrozia are de obicei sezon principal în România între iulie și octombrie,
+  // cu vârf frecvent în august-septembrie. În afara sezonului nu forțăm 0,
+  // ci păstrăm o valoare mică estimată, ca aplicația să nu pară stricată.
+  if (month === 1) return 0.08;
+  if (month === 2) return 0.08;
+  if (month === 3) return 0.12;
+  if (month === 4) return 0.18;
+  if (month === 5) return 0.28;
+  if (month === 6) return 0.45;
+  if (month === 7) return 0.72;
+  if (month === 8) return 0.95;
   if (month === 9) return 1.0;
-  if (month === 10) return day <= 15 ? 0.7 : 0.45;
-  if (month === 11) return 0.25;
-
-  // Fallback gaussian în jurul zilei 250.
-  const peak = 250;
-  const sigma = 38;
-  return clamp(Math.exp(-Math.pow(dayOfYear - peak, 2) / (2 * sigma * sigma)), 0.15, 1);
+  if (month === 10) return day <= 15 ? 0.72 : 0.48;
+  if (month === 11) return 0.24;
+  return 0.1;
 }
 
 function getRegionFactor(lat: number, lon: number) {
-  // România + Balcani / Europa Centrală au risc natural mai mare pentru ambrozie.
-  const inRomaniaLikeArea = lat >= 43 && lat <= 49 && lon >= 20 && lon <= 30;
+  const romaniaArea = lat >= 43 && lat <= 49 && lon >= 20 && lon <= 30;
   const centralEastEurope = lat >= 42 && lat <= 52 && lon >= 14 && lon <= 32;
   const europe = lat >= 35 && lat <= 60 && lon >= -10 && lon <= 40;
+  const northAmerica = lat >= 25 && lat <= 55 && lon >= -130 && lon <= -60;
 
-  if (inRomaniaLikeArea) return 1.15;
-  if (centralEastEurope) return 1.0;
-  if (europe) return 0.75;
-  return 0.55;
+  if (romaniaArea) return 1.18;
+  if (centralEastEurope) return 1.02;
+  if (europe) return 0.82;
+  if (northAmerica) return 0.85;
+  return 0.62;
 }
 
 function estimateRagweedScore(params: {
@@ -111,32 +121,38 @@ function estimateRagweedScore(params: {
   const region = getRegionFactor(params.lat, params.lon);
   const temp = params.temp ?? 24;
   const humidity = params.humidity ?? 55;
-  const wind = params.wind ?? 9;
+  const wind = params.wind ?? 8;
   const rain = params.rain ?? 0;
-  const pm10 = params.pm10 ?? 18;
+  const pm10 = params.pm10 ?? 20;
   const pm25 = params.pm25 ?? 9;
   const dust = params.dust ?? 0;
 
-  const tempFactor = clamp((temp - 10) / 18, 0.25, 1.15);
-  const humidityFactor = humidity > 80 ? 0.55 : humidity > 65 ? 0.78 : humidity < 30 ? 0.85 : 1.0;
-  const windFactor = wind < 4 ? 0.75 : wind < 16 ? 1.0 : 0.82;
-  const rainFactor = rain > 2 ? 0.35 : rain > 0.2 ? 0.62 : 1.0;
-  const particlesFactor = clamp(0.8 + (pm10 / 80) + (pm25 / 120) + (dust / 250), 0.8, 1.35);
+  const tempFactor = clamp((temp - 8) / 20, 0.28, 1.2);
+  const humidityFactor = humidity > 85 ? 0.55 : humidity > 70 ? 0.76 : humidity < 30 ? 0.88 : 1.0;
+  const windFactor = wind < 3 ? 0.78 : wind <= 15 ? 1.06 : 0.84;
+  const rainFactor = rain > 3 ? 0.32 : rain > 0.4 ? 0.58 : 1.0;
+  const particlesFactor = clamp(0.85 + pm10 / 85 + pm25 / 140 + dust / 260, 0.85, 1.36);
 
-  // Bază calibrată pentru Popești-Leordeni / București: în sezon slab-mediu ajunge des în zona 2-4/10.
-  const raw = 3.1 * season * region * tempFactor * humidityFactor * windFactor * rainFactor * particlesFactor;
-  return clamp(raw, 0, 10);
+  // Calibrare pentru UI 0-10. În zona București/Popești-Leordeni,
+  // când Open-Meteo dă 0 dar condițiile sunt normale, vrem frecvent 1-4/10,
+  // nu 0.0/10. În sezon de vârf poate urca natural spre 6-8/10.
+  const raw = 3.65 * season * region * tempFactor * humidityFactor * windFactor * rainFactor * particlesFactor;
+
+  // Minimul estimat evită afișarea inutilă 0.0/10 când nu avem live util.
+  // În afara sezonului rămâne mic, dar vizibil.
+  const softMinimum = 0.8 * season * region;
+
+  return clamp(Math.max(raw, softMinimum), 0.2, 10);
 }
 
 function scoreFromLiveRagweed(raw: number) {
-  // Open-Meteo returnează concentrații modelate. Pentru UI 0-10 folosim o conversie lină,
-  // nu raw direct, ca să nu sară instant la 10 când apar valori mari.
   if (raw <= 0) return 0;
   return clamp(10 * (1 - Math.exp(-raw / 35)), 0, 10);
 }
 
 function pickNearestIndex(times: string[] = []) {
   if (!times.length) return 0;
+
   const now = Date.now();
   let bestIndex = 0;
   let bestDiff = Infinity;
@@ -161,6 +177,22 @@ function getDailyLabel(dateString: string, index: number) {
   return new Date(dateString).toLocaleDateString("ro-RO", { weekday: "short" });
 }
 
+function computeFinalScore(rawRagweed: number, estimatedScore: number) {
+  const liveScore = scoreFromLiveRagweed(rawRagweed);
+
+  if (rawRagweed > 0 && liveScore > 0) {
+    return {
+      score: clamp(liveScore * 0.7 + estimatedScore * 0.3, 0, 10),
+      source: "Mixt" as DataSource,
+    };
+  }
+
+  return {
+    score: estimatedScore,
+    source: "Estimare" as DataSource,
+  };
+}
+
 function buildData(lat: number, lon: number, weather: WeatherPayload | null, air: AirPayload | null): AppData {
   const airTimes: string[] = air?.hourly?.time ?? [];
   const airIndex = pickNearestIndex(airTimes);
@@ -168,8 +200,10 @@ function buildData(lat: number, lon: number, weather: WeatherPayload | null, air
   const weatherTimes: string[] = weather?.hourly?.time ?? [];
   const weatherIndex = pickNearestIndex(weatherTimes);
 
-  const rawRagweed = safeNumber(air?.current?.ragweed_pollen, safeNumber(air?.hourly?.ragweed_pollen?.[airIndex], 0));
-  const hasUsefulLivePollen = Boolean(air) && rawRagweed > 0;
+  const rawRagweed = safeNumber(
+    air?.current?.ragweed_pollen,
+    safeNumber(air?.hourly?.ragweed_pollen?.[airIndex], 0)
+  );
 
   const tempNow = optionalNumber(weather?.current?.temperature_2m) ?? optionalNumber(weather?.hourly?.temperature_2m?.[weatherIndex]);
   const humidity = optionalNumber(weather?.hourly?.relative_humidity_2m?.[weatherIndex]);
@@ -180,15 +214,9 @@ function buildData(lat: number, lon: number, weather: WeatherPayload | null, air
   const dust = optionalNumber(air?.hourly?.dust?.[airIndex]);
 
   const estimatedScore = estimateRagweedScore({ lat, lon, temp: tempNow, humidity, wind, rain, pm10, pm25, dust });
-  const liveScore = scoreFromLiveRagweed(rawRagweed);
-
-  let score = estimatedScore;
-  let source: DataSource = "Estimare";
-
-  if (hasUsefulLivePollen) {
-    score = clamp(liveScore * 0.7 + estimatedScore * 0.3, 0, 10);
-    source = "Mixt";
-  }
+  const final = computeFinalScore(rawRagweed, estimatedScore);
+  const score = final.score;
+  const source = final.source;
 
   const nextRaw = safeNumber(air?.hourly?.ragweed_pollen?.[airIndex + 1], rawRagweed);
   const nextEstimated = estimateRagweedScore({
@@ -202,18 +230,20 @@ function buildData(lat: number, lon: number, weather: WeatherPayload | null, air
     pm25: optionalNumber(air?.hourly?.pm2_5?.[airIndex + 1]) ?? pm25,
     dust: optionalNumber(air?.hourly?.dust?.[airIndex + 1]) ?? dust,
   });
-  const nextScore = hasUsefulLivePollen ? clamp(scoreFromLiveRagweed(nextRaw) * 0.7 + nextEstimated * 0.3, 0, 10) : nextEstimated;
+  const nextScore = computeFinalScore(nextRaw, nextEstimated).score;
 
   const trend: "↑" | "↓" | "→" = nextScore > score + 0.25 ? "↑" : nextScore < score - 0.25 ? "↓" : "→";
 
+  const level = getLevel(score);
   let message = "✅ Nivel scăzut de ambrozie.";
-  if (score >= 7) message = "🛑 Nivel ridicat de ambrozie.";
-  else if (score >= 3) message = "⚠️ Nivel mediu de ambrozie.";
+  if (score >= 7) message = "🛑 Nivel foarte ridicat de ambrozie.";
+  else if (score >= 5) message = "🔴 Nivel ridicat de ambrozie.";
+  else if (score >= 3) message = "⚠️ Nivel moderat de ambrozie.";
 
   const explanation =
     source === "Mixt"
-      ? "Calcul mixt: ambrozie live + estimare meteo/sezon."
-      : "Estimare free: sezon + vreme + particule, pentru că API-ul live dă 0/indisponibil.";
+      ? "Scor mixt: date live Open-Meteo + estimare meteo/sezon."
+      : "Scor estimat: sezon + locație + vreme + particule. Folosit când ambrozia live este 0/indisponibilă.";
 
   const dailyTimes: string[] = weather?.daily?.time ?? [];
   const forecast: ForecastDay[] = Array.from({ length: 5 }).map((_, index) => {
@@ -233,11 +263,12 @@ function buildData(lat: number, lon: number, weather: WeatherPayload | null, air
       date: forecastDate,
     });
     const dayRaw = safeNumber(air?.hourly?.ragweed_pollen?.[airIndex + index * 24], 0);
-    const useLive = dayRaw > 0;
+    const dayFinal = computeFinalScore(dayRaw, dayEstimate);
+
     return {
       label: getDailyLabel(dailyTimes[index], index),
-      score: useLive ? clamp(scoreFromLiveRagweed(dayRaw) * 0.7 + dayEstimate * 0.3, 0, 10) : dayEstimate,
-      source: useLive ? "Mixt" : "Estimare",
+      score: dayFinal.score,
+      source: dayFinal.source,
     };
   });
 
@@ -256,6 +287,7 @@ function buildData(lat: number, lon: number, weather: WeatherPayload | null, air
     pm25,
     dust,
     weatherCode: optionalNumber(weather?.current?.weather_code),
+    level,
     message,
     explanation,
     forecast,
@@ -285,13 +317,15 @@ function App() {
 
   const theme = useMemo(() => {
     const score = data?.score ?? 0;
-    if (score < 3) return { color: "#22c55e", label: "Scăzut" };
-    if (score < 7) return { color: "#f59e0b", label: "Mediu" };
-    return { color: "#ef4444", label: "Ridicat" };
+    if (score < 3) return { color: "#22c55e" };
+    if (score < 5) return { color: "#f59e0b" };
+    if (score < 7) return { color: "#fb7185" };
+    return { color: "#ef4444" };
   }, [data]);
 
   useEffect(() => {
     if (!data) return;
+
     let frame = 0;
     let start = 0;
 
@@ -376,8 +410,7 @@ function App() {
       console.error(error);
       setNotice("Nu am putut încărca datele live. Afișez o estimare pentru București.");
       setCity(DEFAULT_CITY);
-      const computed = buildData(DEFAULT_LAT, DEFAULT_LON, null, null);
-      setData(computed);
+      setData(buildData(DEFAULT_LAT, DEFAULT_LON, null, null));
     }
   }
 
@@ -416,10 +449,11 @@ function App() {
           <span style={{ fontSize: 11, opacity: 0.62 }}>AMBROZIE SCANNER</span>
         </div>
 
-        <div style={{ width: 235, height: 235, borderRadius: "50%", margin: "0 auto 28px", border: `12px solid ${theme.color}`, background: "#1e293b", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", boxShadow: `0 24px 70px ${theme.color}22` }}>
+        <div style={{ width: 245, height: 245, borderRadius: "50%", margin: "0 auto 28px", border: `12px solid ${theme.color}`, background: "#1e293b", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", boxShadow: `0 24px 70px ${theme.color}22` }}>
           <div style={{ fontSize: 12, opacity: 0.65, fontWeight: 900 }}>INDICE AMBROZIE</div>
           <div style={{ fontSize: 78, fontWeight: 950, lineHeight: 1 }}>{displayScore.toFixed(1)}</div>
-          <div style={{ color: theme.color, fontWeight: 950 }}>{theme.label} {data.trend}</div>
+          <div style={{ fontSize: 18, fontWeight: 950, opacity: 0.88, marginTop: -2 }}>/10</div>
+          <div style={{ color: theme.color, fontWeight: 950, marginTop: 6 }}>{data.level} {data.trend}</div>
           <div style={{ fontSize: 12, opacity: 0.74, marginTop: 8 }}>Sursă: {data.source}</div>
         </div>
 
@@ -440,7 +474,7 @@ function App() {
               <div key={day.label} style={{ background: "#1e293b", borderRadius: 16, padding: "12px 6px" }}>
                 <div style={{ fontSize: 11, opacity: 0.65, fontWeight: 900 }}>{day.label}</div>
                 <div style={{ fontSize: 19, fontWeight: 950, marginTop: 6 }}>{day.score.toFixed(1)}</div>
-                <div style={{ fontSize: 10, opacity: 0.5 }}>{day.source}</div>
+                <div style={{ fontSize: 11, opacity: 0.55 }}>/10</div>
               </div>
             ))}
           </div>
@@ -449,7 +483,7 @@ function App() {
         <div style={{ fontSize: 13, opacity: 0.72, lineHeight: 1.55 }}>
           Polen API: {data.livePollen ? "DA" : "NU"} · Vreme API: {data.liveWeather ? "DA" : "NU"}
           <br />
-          Ragweed live brut: {data.rawRagweed.toFixed(2)} · PM10: {data.pm10 === null ? "--" : data.pm10.toFixed(1)}
+          Model: {data.source} · Actualizare automată după locație
           {notice && <><br />{notice}</>}
         </div>
       </div>
