@@ -1,33 +1,32 @@
-# Ambrozie Scanner
+# Ambrozie Scanner Free
 
-## Structura
+Varianta fara API keys, fara Google Cloud, fara Ambee si fara Environment Variables in Vercel.
+
+## Structura GitHub
+
+Pune fisierele direct in radacina repo-ului:
 
 ```txt
 /
 ├── App.tsx
 ├── index.html
 ├── package.json
+├── package-lock.json
 ├── vite.config.ts
-├── .env.example
-└── api
-    └── pollen.ts
+└── README.md
 ```
 
-## Vercel Environment Variables
+## Deploy Vercel
 
-În Vercel, mergi la Project > Settings > Environment Variables și adaugă:
+- Framework Preset: Vite
+- Install Command: npm install
+- Build Command: npm run build
+- Output Directory: dist
 
-```txt
-GOOGLE_POLLEN_API_KEY=cheia_ta_google
-AMBEE_API_KEY=cheia_ta_ambee
-```
+Nu trebuie setata nicio variabila in Vercel.
 
-După ce le adaugi, fă redeploy cu Build Cache OFF.
+## Cum calculeaza indicele
 
-## Prioritate API
-
-1. Google Pollen API
-2. Ambee Pollen API
-3. Open-Meteo fallback
-
-Frontend-ul cheamă `/api/pollen?lat=...&lon=...`, iar cheile rămân ascunse în Vercel Function.
+1. Incearca Open-Meteo Air Quality pentru `ragweed_pollen`.
+2. Daca valoarea live este mai mare decat 0, foloseste un scor mixt: live + estimare.
+3. Daca Open-Meteo intoarce 0 sau nu are date, calculeaza o estimare din sezon, locatie, temperatura, umiditate, ploaie, vant, PM10, PM2.5 si dust.
