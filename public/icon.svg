@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Ambrozie Tracker icon">
+  <defs>
+    <radialGradient id="bg" cx="48%" cy="35%" r="70%">
+      <stop offset="0%" stop-color="#123d22"/>
+      <stop offset="48%" stop-color="#071a15"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </radialGradient>
+    <linearGradient id="leaf" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d9f99d"/>
+      <stop offset="0.48" stop-color="#84cc16"/>
+      <stop offset="1" stop-color="#15803d"/>
+    </linearGradient>
+    <linearGradient id="gauge" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#86efac"/>
+      <stop offset="0.55" stop-color="#facc15"/>
+      <stop offset="1" stop-color="#fb3b3b"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="182" fill="none" stroke="#a3e635" stroke-width="13" stroke-linecap="round" opacity="0.95" filter="url(#glow)"/>
+  <path d="M124 308 C152 200 230 132 300 107" fill="none" stroke="#bef264" stroke-width="9" stroke-linecap="round" opacity="0.9"/>
+
+  <g filter="url(#softGlow)">
+    <path d="M252 372 C252 300 253 235 258 157" fill="none" stroke="#9fe870" stroke-width="11" stroke-linecap="round"/>
+    <path d="M256 181 C236 196 216 215 199 237" fill="none" stroke="#9fe870" stroke-width="7" stroke-linecap="round"/>
+    <path d="M258 212 C281 224 303 241 321 263" fill="none" stroke="#9fe870" stroke-width="7" stroke-linecap="round"/>
+    <path d="M255 252 C225 264 195 288 169 323" fill="none" stroke="#9fe870" stroke-width="7" stroke-linecap="round"/>
+    <path d="M257 285 C291 295 324 318 351 351" fill="none" stroke="#9fe870" stroke-width="7" stroke-linecap="round"/>
+
+    <path d="M182 329 C145 315 119 293 102 262 C141 264 173 278 197 306 C197 306 188 322 182 329Z" fill="url(#leaf)"/>
+    <path d="M208 337 C166 340 132 354 106 382 C152 394 192 384 225 351 C225 351 215 341 208 337Z" fill="url(#leaf)"/>
+    <path d="M337 351 C372 337 399 314 416 280 C379 284 346 299 319 327 C319 327 330 344 337 351Z" fill="url(#leaf)"/>
+    <path d="M303 340 C342 349 371 368 393 397 C349 404 312 392 286 360 C286 360 296 346 303 340Z" fill="url(#leaf)"/>
+    <path d="M220 275 C184 267 155 250 134 222 C171 217 204 228 233 254 C233 254 224 269 220 275Z" fill="url(#leaf)"/>
+    <path d="M300 278 C331 263 354 241 369 212 C338 217 312 232 289 257 C289 257 296 272 300 278Z" fill="url(#leaf)"/>
+  </g>
+
+  <g fill="#d9f99d" filter="url(#glow)">
+    <circle cx="262" cy="143" r="10"/><circle cx="246" cy="165" r="8"/><circle cx="277" cy="168" r="8"/>
+    <circle cx="238" cy="195" r="9"/><circle cx="274" cy="200" r="9"/><circle cx="252" cy="225" r="8"/>
+    <circle cx="286" cy="235" r="8"/><circle cx="230" cy="250" r="8"/><circle cx="270" cy="266" r="9"/>
+    <circle cx="253" cy="292" r="8"/><circle cx="289" cy="304" r="7"/>
+  </g>
+
+  <g opacity="0.9" fill="#bef264" filter="url(#glow)">
+    <circle cx="151" cy="174" r="6"/><circle cx="177" cy="203" r="4"/><circle cx="132" cy="228" r="5"/>
+    <circle cx="362" cy="184" r="5"/><circle cx="388" cy="256" r="7"/><circle cx="366" cy="307" r="4"/>
+    <circle cx="204" cy="151" r="4"/><circle cx="161" cy="282" r="4"/>
+  </g>
+
+  <g filter="url(#glow)">
+    <path d="M326 202 A96 96 0 0 1 440 302" fill="none" stroke="url(#gauge)" stroke-width="16" stroke-linecap="round"/>
+    <path d="M349 211 L337 226 M381 213 L376 232 M413 234 L401 248 M432 268 L414 272" stroke="#071a15" stroke-width="8" stroke-linecap="round" opacity="0.86"/>
+    <circle cx="338" cy="296" r="18" fill="#9fe870"/>
+    <path d="M348 283 L404 220 L358 300 Z" fill="#d9f99d"/>
+    <circle cx="338" cy="296" r="7" fill="#071a15"/>
+  </g>
+</svg>
