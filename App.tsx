@@ -295,6 +295,8 @@ function App() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showInstall, setShowInstall] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [installHelpOpen, setInstallHelpOpen] = useState(false);
   const [updateReady, setUpdateReady] = useState(false);
 
   const theme = useMemo(() => {
@@ -306,13 +308,28 @@ function App() {
 
   useEffect(() => {
     registerServiceWorker(() => setUpdateReady(true));
-    const handler = (event: Event) => {
+    setIsInstalled(isStandalone());
+
+    const installHandler = (event: Event) => {
       event.preventDefault();
       setInstallPrompt(event as BeforeInstallPromptEvent);
       if (!isStandalone()) setShowInstall(true);
     };
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+
+    const installedHandler = () => {
+      setIsInstalled(true);
+      setInstallPrompt(null);
+      setShowInstall(false);
+      setInstallHelpOpen(false);
+    };
+
+    window.addEventListener("beforeinstallprompt", installHandler);
+    window.addEventListener("appinstalled", installedHandler);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", installHandler);
+      window.removeEventListener("appinstalled", installedHandler);
+    };
   }, []);
 
   useEffect(() => {
@@ -415,9 +432,17 @@ function App() {
   }
 
   async function installApp() {
-    if (!installPrompt) return;
+    if (isInstalled) return;
+
+    if (!installPrompt) {
+      setInstallHelpOpen((value) => !value);
+      return;
+    }
+
+    setInstallHelpOpen(false);
     await installPrompt.prompt();
-    await installPrompt.userChoice.catch(() => undefined);
+    const choice = await installPrompt.userChoice.catch(() => null);
+    if (choice?.outcome === "accepted") setIsInstalled(true);
     setInstallPrompt(null);
     setShowInstall(false);
   }
@@ -445,9 +470,21 @@ function App() {
             <p className="eyebrow">Ambrozie Tracker</p>
             <h1>{city}</h1>
           </div>
-          <button className="refresh" onClick={() => startLocationFlow(true)} aria-label="Actualizeaza datele">
-            {isRefreshing ? "⟳" : "↻"}
-          </button>
+          <div className="top-actions">
+            {!isInstalled && (
+              <button
+                className={showInstall && installPrompt ? "install-mini install-mini-ready" : "install-mini"}
+                onClick={installApp}
+                aria-label="Adauga aplicatia pe ecranul principal"
+              >
+                <span className="install-mini-icon">+</span>
+                <span>Instaleaza</span>
+              </button>
+            )}
+            <button className="refresh" onClick={() => startLocationFlow(true)} aria-label="Actualizeaza datele">
+              {isRefreshing ? "⟳" : "↻"}
+            </button>
+          </div>
         </header>
 
         <section className="hero-card">
@@ -494,11 +531,15 @@ function App() {
           <small>{data.detail}<br />Actualizat {data.updatedAt}</small>
         </footer>
 
-        {showInstall && installPrompt && (
-          <button className="install-banner" onClick={installApp}>
-            <span>Instaleaza aplicatia</span>
-            <small>Se deschide fara bara de URL</small>
-          </button>
+        {installHelpOpen && !isInstalled && (
+          <div className="install-help" role="status">
+            <div className="install-help-icon">+</div>
+            <div>
+              <strong>Adauga pe ecran</strong>
+              <p>In Chrome Android: apasa meniul cu trei puncte si alege "Adauga pe ecranul principal".</p>
+            </div>
+            <button onClick={() => setInstallHelpOpen(false)} aria-label="Inchide instructiunile">x</button>
+          </div>
         )}
 
         {updateReady && (
@@ -586,6 +627,7 @@ const styles = `
   }
   .eyebrow { margin: 0 0 5px; color: rgba(226, 232, 240, 0.58); font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; }
   h1 { margin: 0; font-size: 28px; line-height: 1.05; letter-spacing: -0.04em; }
+  .top-actions { display: flex; align-items: center; gap: 9px; }
   .refresh {
     width: 48px;
     height: 48px;
@@ -596,6 +638,33 @@ const styles = `
     color: #fff;
     background: rgba(255, 255, 255, 0.07);
     box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+  }
+  .install-mini {
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid rgba(163, 230, 53, 0.28);
+    border-radius: 999px;
+    padding: 8px 11px 8px 9px;
+    color: #ecfccb;
+    background: linear-gradient(135deg, rgba(132, 204, 22, 0.16), rgba(34, 197, 94, 0.09));
+    box-shadow: 0 12px 32px rgba(34, 197, 94, 0.12), inset 0 1px 0 rgba(255,255,255,0.08);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+  .install-mini-ready { box-shadow: 0 0 0 1px rgba(190, 242, 100, 0.18), 0 14px 38px rgba(34, 197, 94, 0.22); }
+  .install-mini-icon {
+    width: 24px;
+    height: 24px;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+    color: #052e16;
+    background: linear-gradient(135deg, #d9f99d, #22c55e);
+    font-size: 18px;
+    line-height: 1;
   }
 
   .hero-card {
@@ -650,6 +719,42 @@ const styles = `
   .status-card p { margin: 4px 0 0; color: rgba(248, 250, 252, 0.9); font-size: 14px; }
   .status-card small { color: rgba(226, 232, 240, 0.54); text-align: right; line-height: 1.45; }
 
+  .install-help {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: 38px 1fr 30px;
+    gap: 10px;
+    align-items: center;
+    margin-top: 12px;
+    border: 1px solid rgba(163, 230, 53, 0.2);
+    border-radius: 22px;
+    padding: 12px;
+    background: linear-gradient(135deg, rgba(22, 101, 52, 0.34), rgba(15, 23, 42, 0.72));
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+  .install-help-icon {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border-radius: 15px;
+    color: #052e16;
+    background: linear-gradient(135deg, #d9f99d, #22c55e);
+    font-size: 24px;
+    font-weight: 900;
+  }
+  .install-help strong { display: block; font-size: 14px; }
+  .install-help p { margin: 3px 0 0; color: rgba(226, 232, 240, 0.68); font-size: 12px; line-height: 1.35; }
+  .install-help button {
+    width: 30px;
+    height: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    color: rgba(248, 250, 252, 0.84);
+    background: rgba(255, 255, 255, 0.07);
+  }
+
   .install-banner, .update-banner {
     width: 100%;
     margin-top: 12px;
@@ -677,6 +782,9 @@ const styles = `
     .score-center strong { font-size: 64px; }
     h1 { font-size: 25px; }
     h2 { font-size: 27px; }
+    .install-mini { width: 42px; min-width: 42px; padding: 8px; justify-content: center; }
+    .install-mini span:last-child { display: none; }
+    .top-actions { gap: 7px; }
   }
 `;
 
