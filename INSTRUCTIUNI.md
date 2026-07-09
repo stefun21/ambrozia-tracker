@@ -1,33 +1,35 @@
-# Ce pui in GitHub
+# Instrucțiuni instalare UI/UX upgrade
 
-Inlocuieste fisierele existente din radacina repo-ului cu aceste fisiere:
+Am lucrat direct pe structura proiectului tău Vite + React.
 
-- App.tsx
-- index.html
-- package.json
-- vite.config.ts
-- README.md
+## Varianta recomandată
 
-Adauga fisierul nou:
+1. Deschide repo-ul tău din GitHub.
+2. Înlocuiește conținutul repo-ului cu fișierele din această arhivă.
+3. Nu încărca `node_modules` și nu încărca folderul `dist`.
+4. Fă commit și push.
+5. Vercel va rula automat `npm run build`.
 
-- tsconfig.json
+## Fișiere importante modificate
 
-Adauga folderul public complet:
+- `App.tsx` — UI/UX complet refăcut, scorul de ambrozie este elementul principal.
+- `tsconfig.json` — reparat; înainte conținea cod de Vite, nu JSON valid.
+- `vite.config.ts` — configurat corect pentru build Vercel.
 
-public/
-├── apple-touch-icon.png
-├── favicon.ico
-├── icon.svg
-├── icon-192.png
-├── icon-512.png
-├── maskable-icon-512.png
-├── manifest.webmanifest
-└── sw.js
+## Ce am păstrat
 
-Dupa ce faci commit, Vercel ar trebui sa faca deploy automat.
+- Logica de date și calculul scorului.
+- Tema dark/neon/verde.
+- Informațiile existente: locație, temperatură, vânt, umiditate, PM10, forecast, sursă date.
+- Folderul `public` și iconurile tale.
 
-Setari Vercel:
-- Framework Preset: Vite
-- Install Command: npm install
-- Build Command: npm run build
-- Output Directory: dist
+## Testat
+
+Am rulat local:
+
+```bash
+npm install
+npm run build
+```
+
+Build-ul trece cu succes.
