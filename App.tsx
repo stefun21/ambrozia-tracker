@@ -25,7 +25,7 @@ import {
 const DEFAULT_LAT = 44.4268;
 const DEFAULT_LON = 26.1025;
 const DEFAULT_CITY = "București";
-const CACHE_KEY = "ambrozie_tracker_v4_uiux";
+const CACHE_KEY = "ambrozie_tracker_v6_reference_calibration";
 const CACHE_TIME_MS = 10 * 60 * 1000;
 
 type DataSource = "Live" | "Estimare" | "Mixt";
@@ -84,6 +84,25 @@ function optionalNumber(value: unknown) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
+}
+
+function smoothstep(edge0: number, edge1: number, value: number) {
+  const t = clamp((value - edge0) / (edge1 - edge0), 0, 1);
+  return t * t * (3 - 2 * t);
+}
+
+function alignScoreToReference(score: number) {
+  const base = clamp(score, 0, 10);
+  if (base <= 0.25) return base;
+
+  // Calibrare nouă: ridică zona 4-6 spre valorile afișate de aplicația de referință,
+  // fără să transforme artificial nivelurile foarte mici în alerte mari.
+  // Exemplu practic: 4.8 devine aproximativ 7.0.
+  const midRangeLift = smoothstep(2.2, 5.8, base);
+  const remainingHeadroom = Math.pow((10 - base) / 10, 1.05);
+  const calibrated = base + 5.4 * midRangeLift * remainingHeadroom;
+
+  return clamp(calibrated, 0, 9.7);
 }
 
 function weatherIcon(code: number | null) {
@@ -228,13 +247,16 @@ function scoreFromLiveRagweed(raw: number) {
 function computeFinalScore(rawRagweed: number, estimatedScore: number) {
   const liveScore = scoreFromLiveRagweed(rawRagweed);
   if (rawRagweed > 0 && liveScore > 0) {
+    const blendedScore = clamp(liveScore * 0.7 + estimatedScore * 0.3, 0, 10);
     return {
-      score: clamp(liveScore * 0.72 + estimatedScore * 0.28, 0, 10),
+      score: alignScoreToReference(blendedScore),
       source: "Mixt" as DataSource,
     };
   }
+
+  const estimatedOnlyScore = clamp(estimatedScore * 0.82, 0, 8.4);
   return {
-    score: clamp(estimatedScore * 0.78, 0, 7.8),
+    score: alignScoreToReference(estimatedOnlyScore),
     source: "Estimare" as DataSource,
   };
 }
@@ -300,7 +322,7 @@ function buildData(lat: number, lon: number, weather: WeatherPayload | null, air
 
   const level = getLevel(score);
   const message = score >= 7 ? "Protecție recomandată" : score >= 5 ? "Expunere de urmărit" : score >= 3 ? "Nivel moderat azi" : "Aer mai prietenos";
-  const detail = source === "Mixt" ? "Date live calibrate + model meteo" : "Estimare meteo/sezon calibrată";
+  const detail = source === "Mixt" ? "Date live + calibrare referință" : "Estimare calibrată pe referință";
 
   const dailyTimes: string[] = weather?.daily?.time ?? [];
   const forecast: ForecastDay[] = Array.from({ length: 4 }).map((_, index) => {
