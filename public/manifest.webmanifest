@@ -1,13 +1,12 @@
 {
   "name": "Ambrozia Tracker",
   "short_name": "Ambrozia",
-  "description": "Monitorizare moderna pentru nivelul de ambrozie si conditiile locale.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#050816",
-  "theme_color": "#050816",
+  "background_color": "#101f1a",
+  "theme_color": "#101f1a",
   "icons": [
     {
       "src": "/icon-192.png",
